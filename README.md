@@ -1,5 +1,7 @@
 # mini-redis
 
+阅读代码，并添加了一些”笔记“
+
 `mini-redis` is an incomplete, idiomatic implementation of a
 [Redis](https://redis.io) client and server built with
 [Tokio](https://tokio.rs).
@@ -25,7 +27,6 @@ The Redis wire protocol documentation can be found [here](https://redis.io/topic
 
 The set of commands Redis provides can be found
 [here](https://redis.io/commands).
-
 
 ## Running
 
@@ -74,6 +75,7 @@ providers if needed.
 ### AWS X-Ray example
 
 To enable sending traces to X-Ray, use the `otel` feature:
+
 ```
 RUST_LOG=debug cargo run --bin mini-redis-server --features otel
 ```
@@ -154,6 +156,7 @@ implements this using one [broadcast channel][broadcast] per channel and a
 the server to update the active subscriptions.
 
 [broadcast]: https://docs.rs/tokio/*/tokio/sync/broadcast/index.html
+
 [`StreamMap`]: https://docs.rs/tokio-stream/*/tokio_stream/struct.StreamMap.html
 
 ### Using a `std::sync::Mutex` in an async application
