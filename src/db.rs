@@ -6,9 +6,18 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 use tracing::debug;
 
+
+// 封装了4层 --> DbDropGuard<Db<Arc<Shared<Mutex<State>>>>> 用 `Arc`和`Mutex`包装使其可以`Send`和`Sync`
+// 1. DbDropGuard: 包装`Db`实现`drop`后发送关机信号
+// 2. Db: 用`Arc`封装共享的数据(`Arc<Shared>`)使其可以安全的`Send`。并提供一些操作方法(操作共享数据)
+// 3. Shared: 用互斥量封装数据(`Mutex<State>`)使其可以`Sync`
+// 4. State: 数据最终的状态(真正放数据的地方)。在上层用`Arc`、`Mutex`保护。
+
 /// A wrapper around a `Db` instance. This exists to allow orderly cleanup
 /// of the `Db` by signalling the background purge task to shut down when
 /// this struct is dropped.
+///
+/// 包装器，作用是`drop`掉后用来发出`关闭信号`
 #[derive(Debug)]
 pub(crate) struct DbDropGuard {
     /// The `Db` instance that will be shut down when this `DbHolder` struct
@@ -28,6 +37,8 @@ pub(crate) struct DbDropGuard {
 /// used to expire values after the requested duration has elapsed. The task
 /// runs until all instances of `Db` are dropped, at which point the task
 /// terminates.
+///
+/// 用`Arc`包装“服务器状态”使其可以在线程间共享
 #[derive(Debug, Clone)]
 pub(crate) struct Db {
     /// Handle to shared state. The background task will also have an
@@ -35,6 +46,8 @@ pub(crate) struct Db {
     shared: Arc<Shared>,
 }
 
+
+/// 包装可变的(`Mutex<State>`)服务器共享状态
 #[derive(Debug)]
 struct Shared {
     /// The shared state is guarded by a mutex. This is a `std::sync::Mutex` and
@@ -49,14 +62,15 @@ struct Shared {
     /// operations), then the entire operation, including waiting for the mutex,
     /// is considered a "blocking" operation and `tokio::task::spawn_blocking`
     /// should be used.
-    state: Mutex<State>,
+    state: Mutex<State>, // `std::Mutex`
 
     /// Notifies the background task handling entry expiration. The background
     /// task waits on this to be notified, then checks for expired values or the
     /// shutdown signal.
-    background_task: Notify,
+    background_task: Notify, // 清除过期`key`通知
 }
 
+/// 真正需要共享的状态(数据)
 #[derive(Debug)]
 struct State {
     /// The key-value data. We are not trying to do anything fancy so a
